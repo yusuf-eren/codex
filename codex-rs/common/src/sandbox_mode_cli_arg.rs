@@ -7,7 +7,7 @@
 //! `config.toml`.
 
 use clap::ValueEnum;
-use codex_core::config_types::SandboxMode;
+use codex_protocol::config_types::SandboxMode;
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 #[value(rename_all = "kebab-case")]
@@ -24,5 +24,24 @@ impl From<SandboxModeCliArg> for SandboxMode {
             SandboxModeCliArg::WorkspaceWrite => SandboxMode::WorkspaceWrite,
             SandboxModeCliArg::DangerFullAccess => SandboxMode::DangerFullAccess,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn maps_cli_args_to_protocol_modes() {
+        assert_eq!(SandboxMode::ReadOnly, SandboxModeCliArg::ReadOnly.into());
+        assert_eq!(
+            SandboxMode::WorkspaceWrite,
+            SandboxModeCliArg::WorkspaceWrite.into()
+        );
+        assert_eq!(
+            SandboxMode::DangerFullAccess,
+            SandboxModeCliArg::DangerFullAccess.into()
+        );
     }
 }

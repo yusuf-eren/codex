@@ -19,8 +19,8 @@ use toml::Value;
 pub struct CliConfigOverrides {
     /// Override a configuration value that would otherwise be loaded from
     /// `~/.codex/config.toml`. Use a dotted path (`foo.bar.baz`) to override
-    /// nested values. The `value` portion is parsed as JSON. If it fails to
-    /// parse as JSON, the raw string is used as a literal.
+    /// nested values. The `value` portion is parsed as TOML. If it fails to
+    /// parse as TOML, the raw string is used as a literal.
     ///
     /// Examples:
     ///   - `-c model="o3"`
@@ -59,12 +59,16 @@ impl CliConfigOverrides {
                     return Err(format!("Empty key in override: {s}"));
                 }
 
-                // Attempt to parse as JSON. If that fails, treat it as a raw
+                // Attempt to parse as TOML. If that fails, treat it as a raw
                 // string. This allows convenient usage such as
                 // `-c model=o3` without the quotes.
                 let value: Value = match parse_toml_value(value_str) {
                     Ok(v) => v,
-                    Err(_) => Value::String(value_str.to_string()),
+                    Err(_) => {
+                        // Strip leading/trailing quotes if present
+                        let trimmed = value_str.trim().trim_matches(|c| c == '"' || c == '\'');
+                        Value::String(trimmed.to_string())
+                    }
                 };
 
                 Ok((key.to_string(), value))
@@ -138,7 +142,6 @@ fn parse_toml_value(raw: &str) -> Result<Value, toml::de::Error> {
 }
 
 #[cfg(all(test, feature = "cli"))]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -146,6 +149,15 @@ mod tests {
     fn parses_basic_scalar() {
         let v = parse_toml_value("42").expect("parse");
         assert_eq!(v.as_integer(), Some(42));
+    }
+
+    #[test]
+    fn parses_bool() {
+        let true_literal = parse_toml_value("true").expect("parse");
+        assert_eq!(true_literal.as_bool(), Some(true));
+
+        let false_literal = parse_toml_value("false").expect("parse");
+        assert_eq!(false_literal.as_bool(), Some(false));
     }
 
     #[test]
