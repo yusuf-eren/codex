@@ -483,8 +483,10 @@ impl UnifiedExecProcessManager {
         cwd: PathBuf,
         context: &UnifiedExecContext,
     ) -> Result<UnifiedExecProcess, UnifiedExecError> {
-        let env = apply_unified_exec_env(create_env(&context.turn.shell_environment_policy));
-        let features = context.session.features();
+        let env = apply_unified_exec_env(create_env(
+            &context.turn.shell_environment_policy,
+            Some(context.session.conversation_id),
+        ));
         let mut orchestrator = ToolOrchestrator::new();
         let mut runtime = UnifiedExecRuntime::new(self);
         let exec_approval_requirement = context
@@ -492,7 +494,6 @@ impl UnifiedExecProcessManager {
             .services
             .exec_policy
             .create_exec_approval_requirement_for_command(ExecApprovalRequest {
-                features: &features,
                 command: &request.command,
                 approval_policy: context.turn.approval_policy,
                 sandbox_policy: &context.turn.sandbox_policy,
@@ -500,15 +501,16 @@ impl UnifiedExecProcessManager {
                 prefix_rule: request.prefix_rule.clone(),
             })
             .await;
-        let req = UnifiedExecToolRequest::new(
-            request.command.clone(),
+        let req = UnifiedExecToolRequest {
+            command: request.command.clone(),
             cwd,
             env,
-            request.tty,
-            request.sandbox_permissions,
-            request.justification.clone(),
+            network: context.turn.config.network.clone(),
+            tty: request.tty,
+            sandbox_permissions: request.sandbox_permissions,
+            justification: request.justification.clone(),
             exec_approval_requirement,
-        );
+        };
         let tool_ctx = ToolCtx {
             session: context.session.as_ref(),
             turn: context.turn.as_ref(),
